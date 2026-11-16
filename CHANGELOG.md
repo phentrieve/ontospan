@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+Format 1.3 adds the set kind `external_human` for annotations made by people
+outside the consuming application. 1.0 to 1.2 units and bundles stay valid;
+their schema files are unchanged.
+
+- `set_kind: "external_human"` and the set block `source` (`name`, optional
+  `description` and `producer`). Public `ExternalSource`; `AnnotationSet.source`
+  is left out when unset.
+- New validation codes (errors): `external_source_missing`,
+  `external_source_unexpected`, `external_actor_kind`, `external_method` and
+  `external_stage`.
+- This is the one value added to a closed list within major version 1.
+  Readers older than 1.3 reject an `external_human` unit (`model`).
+- Schemas `annotated-document-1.3.json`, `bundle-manifest-1.3.json` and
+  `hpo-phenotype-annotation-1.3.json`; conformance fixtures for the set kind.
+- `SCHEMA_VERSION` is `1.3.0`; new units and bundles declare it by default.
+
 ZIP bundles with more than 10,000 entries (`MAX_ENTRIES`) are refused as
 `too_large` before any entry is read; the duplicate-entry check is linear.
 

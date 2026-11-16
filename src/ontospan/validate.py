@@ -247,6 +247,42 @@ def _check_variant(unit: AnnotatedDocument, report: ValidationReport) -> None:
         report.add("error", "translation_unexpected", "document.translation", message)
 
 
+def _check_external(unit: AnnotatedDocument, report: ValidationReport) -> None:
+    """Rules of the format 1.3 set kind ``external_human`` and its ``source``.
+
+    The set was made by people outside the consumer. It states where, names
+    only human actors and claims no workflow stage, so a consumer can take it
+    as input to check and never as a result.
+    """
+    annotation_set = unit.annotation_set
+    if annotation_set.set_kind != "external_human":
+        if annotation_set.source is not None:
+            message = "source is only allowed on an external_human set"
+            report.add(
+                "error", "external_source_unexpected", "annotation_set.source", message
+            )
+        return
+    if annotation_set.source is None:
+        message = "an external_human set states where it was made"
+        report.add("error", "external_source_missing", "annotation_set.source", message)
+    if annotation_set.stage is not None:
+        message = "an external_human set is not the result of a workflow stage"
+        report.add("error", "external_stage", "annotation_set.stage", message)
+    for index, actor in enumerate(annotation_set.actors):
+        if actor.kind != "human":
+            where = f"annotation_set.actors[{index}].kind"
+            message = "the actors of an external_human set are human"
+            report.add("error", "external_actor_kind", where, message)
+    for index, annotation in enumerate(annotation_set.annotations):
+        where = f"annotation_set.annotations[{index}].provenance"
+        if annotation.provenance.actor.kind != "human":
+            message = "the annotations of an external_human set are made by humans"
+            report.add("error", "external_actor_kind", f"{where}.actor.kind", message)
+        if annotation.provenance.method == "tool":
+            message = "method tool is not allowed in an external_human set"
+            report.add("error", "external_method", f"{where}.method", message)
+
+
 def _check_layers(
     unit: AnnotatedDocument,
     version: Version,
@@ -295,6 +331,7 @@ def _check_content(
     if text_sha256(text) != unit.document.text_sha256:
         report.add("error", "text_hash", "document.text_sha256", "hash does not match")
     _check_variant(unit, report)
+    _check_external(unit, report)
     if require_tool_identity:
         for index, actor in enumerate(unit.annotation_set.actors):
             _check_actor(actor, f"annotation_set.actors[{index}]", report)

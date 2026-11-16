@@ -126,7 +126,7 @@ def test_phenopacket_refuses_reviewer_uncertainty(
 
 def test_newer_minor_keeps_unknown_resolution_fields() -> None:
     data = flagged().model_dump(mode="json")
-    data["schema_version"] = "1.3.0"
+    data["schema_version"] = "1.4.0"
     data["annotation_set"]["annotations"][1]["review_resolution"]["future"] = {
         "value": 1
     }
