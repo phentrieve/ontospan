@@ -5,6 +5,11 @@
 BioC JSON/XML (`to_bioc_json`, `to_bioc_xml`) and brat (`to_brat`, `BratFiles`)
 exports with a `ConversionReport`; codepoint offsets, document-level
 annotations as BioC relations without nodes, dropped and listed in brat (#6).
+The BioC export lists every loss per annotation in `ConversionReport.issues`
+(`spanless_as_relation`, `discontinuous_text_joined`, `modifiers_as_infon`,
+`modifier_segments_dropped`, `cue_segments_dropped`, `assertion_in_infon`,
+`review_resolution_in_infon`) and takes `offset_unit="utf8"` for byte offsets
+as `BioC.dtd` recommends; codepoints stay the default.
 
 ZIP bundles with more than 10,000 entries (`MAX_ENTRIES`) are refused as
 `too_large` before any entry is read; the duplicate-entry check is linear.

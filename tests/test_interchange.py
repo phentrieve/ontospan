@@ -5,6 +5,7 @@ from typing import Any
 import pytest
 from builders import FIXTURES, SEIZURE, SEVERE, annotation, axes, unit
 
+import ontospan
 from ontospan.bioc import to_bioc_json, to_bioc_xml
 from ontospan.brat import to_brat
 from ontospan.models import (
@@ -15,6 +16,7 @@ from ontospan.models import (
     ReviewResolution,
 )
 from ontospan.ontology import ObographOntology
+from ontospan.text import canonical_text
 
 # Emoji are one codepoint, two UTF-16 units and four UTF-8 bytes.
 # Krampfanfälle 2-15, schwere 19-26, Hypotonie 27-36, Fieber 41-47.
@@ -270,3 +272,141 @@ def test_bioc_xml_refuses_characters_xml_cannot_hold() -> None:
     assert infons["note_1"] == "bell \x07"
     with pytest.raises(ValueError, match="XML 1"):
         to_bioc_xml([item])
+
+
+# BioC: offset units, the list of losses and the golden file
+
+# A ZWJ emoji sequence (4 codepoints, 13 bytes), a combining mark that NFC
+# keeps apart (x + U+0304), a precomposed umlaut and an astral letter.
+U = "👩‍⚕️ sieht x̄ Krampfanfälle \U0001d4b3 und Fieber."
+GOLDEN = FIXTURES / "bioc-sample.json"
+
+
+def span(word: str) -> tuple[int, int]:
+    start = U.index(word)
+    return start, start + len(word)
+
+
+def unicode_sample() -> AnnotatedDocument:
+    assert canonical_text(U) == U
+    found = [
+        annotation("u1", SEIZURE, [span("Krampfanfälle")], text=U),
+        annotation("u2", HYPOTONIA, [[span("x̄"), span("\U0001d4b3")]], text=U),
+        annotation("u3", FEVER, [span("Fieber")], text=U),
+    ]
+    return unit(found, text=U)
+
+
+def bioc_annotations(collection: dict[str, Any]) -> list[dict[str, Any]]:
+    found: list[dict[str, Any]] = collection["documents"][0]["passages"][0][
+        "annotations"
+    ]
+    return found
+
+
+def test_bioc_codepoint_offsets_index_the_passage_text() -> None:
+    collection, _ = to_bioc_json([unicode_sample()])
+    assert collection["infons"]["offset_unit"] == "codepoint"
+    text = collection["documents"][0]["passages"][0]["text"]
+    assert text == U
+    items = {item["id"]: item for item in bioc_annotations(collection)}
+    for item in items.values():
+        quoted = [
+            text[x["offset"] : x["offset"] + x["length"]] for x in item["locations"]
+        ]
+        assert item["text"] == " ".join(quoted)
+    # The emoji sequence counts as 4 and the combining mark as its own unit.
+    assert items["u1"]["locations"] == [{"offset": 14, "length": 13}]
+    assert items["u2"]["locations"] == [
+        {"offset": 11, "length": 2},
+        {"offset": 28, "length": 1},
+    ]
+    assert items["u2"]["text"] == "x̄ \U0001d4b3"
+
+
+def test_bioc_utf8_offsets_index_the_encoded_passage_text() -> None:
+    collection, _ = to_bioc_json([unicode_sample()], offset_unit="utf8")
+    assert collection["infons"]["offset_unit"] == "utf8"
+    raw = collection["documents"][0]["passages"][0]["text"].encode("utf-8")
+    items = {item["id"]: item for item in bioc_annotations(collection)}
+    for item in items.values():
+        quoted = [
+            raw[x["offset"] : x["offset"] + x["length"]].decode("utf-8")
+            for x in item["locations"]
+        ]
+        assert item["text"] == " ".join(quoted)
+    # 13 bytes of emoji, 3 of the combining pair, 2 of the umlaut, 4 astral.
+    assert items["u1"]["locations"] == [{"offset": 24, "length": 14}]
+    assert items["u2"]["locations"] == [
+        {"offset": 20, "length": 3},
+        {"offset": 39, "length": 4},
+    ]
+    assert items["u3"]["locations"] == [{"offset": 48, "length": 6}]
+
+
+def test_bioc_offset_units_agree_on_ascii_and_reject_unknown_units() -> None:
+    plain = unit([annotation("a1", SEIZURE, [(6, 12)], text="Keine Krampf.")])
+    by_codepoint, _ = to_bioc_json([plain])
+    by_byte, _ = to_bioc_json([plain], offset_unit="utf8")
+    assert bioc_annotations(by_codepoint) == bioc_annotations(by_byte)
+    xml, _ = to_bioc_xml([unicode_sample()], offset_unit="utf8")
+    assert '<location offset="24" length="14" />' in xml
+    with pytest.raises(ValueError, match="offset unit"):
+        to_bioc_json([plain], offset_unit="utf16")  # type: ignore[arg-type]
+
+
+def test_bioc_report_lists_every_loss_per_annotation() -> None:
+    resolution = ReviewResolution(
+        outcome="uncertain", reviewer=Actor(actor_id="rev-1", kind="human")
+    )
+    flagged = a("a6", FEVER, (41, 47), axes_=axes("uncertain")).model_copy(
+        update={"review_resolution": resolution}
+    )
+    _, report = to_bioc_json([sample([*items(), flagged])], bundle_id="b-1")
+    assert [(issue.code, issue.path) for issue in report.issues] == [
+        ("cue_segments_dropped", "urn:ontospan:b-1:set-1:a1"),
+        ("modifiers_as_infon", "urn:ontospan:b-1:set-1:a1"),
+        ("modifier_segments_dropped", "urn:ontospan:b-1:set-1:a1"),
+        ("discontinuous_text_joined", "urn:ontospan:b-1:set-1:a2"),
+        ("assertion_in_infon", "urn:ontospan:b-1:set-1:a3"),
+        ("assertion_in_infon", "urn:ontospan:b-1:set-1:a6"),
+        ("review_resolution_in_infon", "urn:ontospan:b-1:set-1:a6"),
+        ("spanless_as_relation", "urn:ontospan:b-1:set-1:d1"),
+    ]
+    assert {issue.level for issue in report.issues} == {"warning"}
+    assert all(issue.message.startswith("doc-1: ") for issue in report.issues)
+    assert report.issues[0].message == "doc-1: 1 cue segment(s) not written"
+    assert (report.modifiers_flattened, report.assertion_only_in_infons) == (1, 2)
+    assert (report.review_resolutions, report.spanless) == (1, 1)
+
+
+def test_bioc_report_names_the_document_of_each_loss() -> None:
+    first = sample([items()[-1]], document_id="doc-1")
+    second = sample([items()[1]], document_id="doc-2", set_id="set-2")
+    clean = sample([items()[4]], document_id="doc-3", set_id="set-3")
+    _, report = to_bioc_json([first, second, clean])
+    assert [(issue.code, issue.path, issue.message) for issue in report.issues] == [
+        (
+            "spanless_as_relation",
+            "urn:ontospan:set-1:d1",
+            "doc-1: no text span; written as a relation",
+        ),
+        (
+            "discontinuous_text_joined",
+            "urn:ontospan:set-2:a2",
+            "doc-2: mention 1 is discontinuous; its text is joined",
+        ),
+    ]
+
+
+def test_bioc_json_matches_the_golden_file(hp: ObographOntology) -> None:
+    collection, report = to_bioc_json([sample()], hp, bundle_id="b-1")
+    golden = json.loads(GOLDEN.read_text(encoding="utf-8"))
+    # The file was written by ontospan 1.2.1; only the versions move on.
+    golden["infons"].update(
+        ontospan_version=ontospan.__version__, schema_version=ontospan.SCHEMA_VERSION
+    )
+    assert json.dumps(collection, ensure_ascii=False) == json.dumps(
+        golden, ensure_ascii=False
+    )
+    assert len(report.issues) == 6

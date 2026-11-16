@@ -1,0 +1,217 @@
+{
+  "source": "ontospan",
+  "date": "2026-10-14",
+  "key": "ontospan.key",
+  "infons": {
+    "offset_unit": "codepoint",
+    "ontospan_version": "1.2.1",
+    "schema_version": "1.2.0"
+  },
+  "documents": [
+    {
+      "id": "doc-1",
+      "infons": {
+        "document_id": "doc-1",
+        "annotation_set_id": "set-1",
+        "set_kind": "individual",
+        "language": "de",
+        "text_sha256": "ff4787c1efd06d1478119415f596fdb3a4117d1e326b45a365e4a2eceb535fb8",
+        "layer.hpo.profile": "hpo-phenotype",
+        "layer.hpo.ontology": "hp",
+        "layer.hpo.version": "2026-06-23"
+      },
+      "passages": [
+        {
+          "offset": 0,
+          "infons": {
+            "type": "text"
+          },
+          "text": "🧒 Krampfanfälle, 😷 schwere\nHypotonie und Fieber.",
+          "sentences": [],
+          "annotations": [
+            {
+              "id": "a1",
+              "infons": {
+                "identifier": "HP:0001250",
+                "type": "hpo",
+                "label": "Seizure",
+                "assertion": "present",
+                "assertion_basis": "chosen",
+                "experiencer": "patient",
+                "experiencer_basis": "chosen",
+                "temporality": "current",
+                "temporality_basis": "chosen",
+                "modifiers": "HP:0012828",
+                "annotator": "ann-03",
+                "annotator_kind": "human",
+                "method": "manual",
+                "annotation_ref": "urn:ontospan:b-1:set-1:a1",
+                "mention": "1"
+              },
+              "text": "Krampfanfälle",
+              "locations": [
+                {
+                  "offset": 2,
+                  "length": 13
+                }
+              ]
+            },
+            {
+              "id": "a4/2",
+              "infons": {
+                "identifier": "HP:0001945",
+                "type": "hpo",
+                "assertion": "present",
+                "assertion_basis": "chosen",
+                "experiencer": "patient",
+                "experiencer_basis": "chosen",
+                "temporality": "current",
+                "temporality_basis": "chosen",
+                "annotator": "ann-03",
+                "annotator_kind": "human",
+                "method": "manual",
+                "annotation_ref": "urn:ontospan:b-1:set-1:a4",
+                "mention": "2"
+              },
+              "text": "Krampfanfälle",
+              "locations": [
+                {
+                  "offset": 2,
+                  "length": 13
+                }
+              ]
+            },
+            {
+              "id": "a2",
+              "infons": {
+                "identifier": "HP:0001252",
+                "type": "hpo",
+                "assertion": "present",
+                "assertion_basis": "chosen",
+                "experiencer": "patient",
+                "experiencer_basis": "chosen",
+                "temporality": "current",
+                "temporality_basis": "chosen",
+                "annotator": "ann-03",
+                "annotator_kind": "human",
+                "method": "manual",
+                "annotation_ref": "urn:ontospan:b-1:set-1:a2",
+                "mention": "1"
+              },
+              "text": "schwere Hypotonie",
+              "locations": [
+                {
+                  "offset": 19,
+                  "length": 7
+                },
+                {
+                  "offset": 27,
+                  "length": 9
+                }
+              ]
+            },
+            {
+              "id": "a5",
+              "infons": {
+                "identifier": "HP:0001252",
+                "type": "hpo",
+                "assertion": "present",
+                "assertion_basis": "chosen",
+                "experiencer": "patient",
+                "experiencer_basis": "chosen",
+                "temporality": "current",
+                "temporality_basis": "chosen",
+                "annotator": "ann-03",
+                "annotator_kind": "human",
+                "method": "manual",
+                "annotation_ref": "urn:ontospan:b-1:set-1:a5",
+                "mention": "1"
+              },
+              "text": "schwere\nHypotonie",
+              "locations": [
+                {
+                  "offset": 19,
+                  "length": 17
+                }
+              ]
+            },
+            {
+              "id": "a3",
+              "infons": {
+                "identifier": "HP:0001252",
+                "type": "hpo",
+                "assertion": "absent",
+                "assertion_basis": "defaulted",
+                "experiencer": "patient",
+                "experiencer_basis": "defaulted",
+                "temporality": "current",
+                "temporality_basis": "defaulted",
+                "annotator": "ann-03",
+                "annotator_kind": "human",
+                "method": "manual",
+                "annotation_ref": "urn:ontospan:b-1:set-1:a3",
+                "mention": "1"
+              },
+              "text": "Hypotonie",
+              "locations": [
+                {
+                  "offset": 27,
+                  "length": 9
+                }
+              ]
+            },
+            {
+              "id": "a4/1",
+              "infons": {
+                "identifier": "HP:0001945",
+                "type": "hpo",
+                "assertion": "present",
+                "assertion_basis": "chosen",
+                "experiencer": "patient",
+                "experiencer_basis": "chosen",
+                "temporality": "current",
+                "temporality_basis": "chosen",
+                "annotator": "ann-03",
+                "annotator_kind": "human",
+                "method": "manual",
+                "annotation_ref": "urn:ontospan:b-1:set-1:a4",
+                "mention": "1"
+              },
+              "text": "Fieber",
+              "locations": [
+                {
+                  "offset": 41,
+                  "length": 6
+                }
+              ]
+            }
+          ],
+          "relations": []
+        }
+      ],
+      "annotations": [],
+      "relations": [
+        {
+          "id": "d1",
+          "infons": {
+            "identifier": "HP:0011146",
+            "type": "hpo",
+            "label": "Dialeptic seizure",
+            "assertion": "present",
+            "assertion_basis": "chosen",
+            "experiencer": "patient",
+            "experiencer_basis": "chosen",
+            "temporality": "current",
+            "temporality_basis": "chosen",
+            "annotator": "ann-03",
+            "annotator_kind": "human",
+            "method": "manual",
+            "annotation_ref": "urn:ontospan:b-1:set-1:d1",
+            "document_level": "true"
+          },
+          "nodes": []
+        }
+      ]
+    }
+  ]
+}

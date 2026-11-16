@@ -66,8 +66,11 @@ deterministic: annotations in text order, then layer and id. An optional
 ontology adds labels.
 
 - Offsets stay Unicode codepoints of the canonical text. brat counts
-  codepoints of its `.txt` too. BioC tools differ (some count UTF-8 bytes), so
-  the collection states `offset_unit: codepoint` in its infons.
+  codepoints of its `.txt` too. BioC tools differ: those written in Python or
+  Java count codepoints, while `BioC.dtd` recommends UTF-8 bytes.
+  `to_bioc_json(units, offset_unit="utf8")` writes bytes. The collection
+  states the unit in its infons (`offset_unit: codepoint` or `utf8`). An
+  emoji is one codepoint and four bytes; a combining mark counts on its own.
 - BioC: one document per annotated document (alternative sets of one document
   get `urn:ontospan:document:<document>:<set>`), one passage with the full
   text, one annotation per mention with one location per segment. Infons hold
@@ -83,6 +86,24 @@ ontology adds labels.
   modifiers, provenance and reviewer resolution. brat cannot hold
   document-level annotations; they are listed in `report.dropped`.
 - Both drop cue segments and modifier segments and keep the modifier terms.
+- The exports write the units they are given. To publish results, pass one
+  set per document, for example the adjudicated or release set.
+
+What BioC cannot hold as such is listed in `report.issues`, one warning
+(`Issue`) per annotation and kind of loss. Its `path` is the annotation
+reference and its message starts with the document id:
+
+| Code | Meaning |
+| --- | --- |
+| `spanless_as_relation` | A document-level annotation has no location. It is a relation without nodes; tools that read only annotations miss it. |
+| `discontinuous_text_joined` | The locations are exact; the annotation text is the segment texts joined by a space. |
+| `modifiers_as_infon` | Modifier terms are one infon (`modifiers`), not annotations or relations. |
+| `modifier_segments_dropped`, `cue_segments_dropped` | These spans are not written. |
+| `assertion_in_infon` | BioC has no negation or uncertainty. An `absent` or `uncertain` annotation is an ordinary annotation to a reader that ignores infons. |
+| `review_resolution_in_infon` | The reviewer's `uncertain` flag is kept in infons only. |
+
+Everything else is kept exactly: text, mention segments, term, layer, axis
+values with their basis, provenance and references.
 
 ## Binding contract
 
