@@ -12,6 +12,7 @@ from dataclasses import dataclass, field, fields
 from urllib.parse import quote
 
 from ontospan.models import AnnotatedDocument, Annotation, Mention
+from ontospan.report import Issue
 
 
 @dataclass
@@ -38,6 +39,20 @@ class ConversionReport:
     split_at_line_breaks: int = 0
     # brat: line breaks and tabs in note text replaced by spaces.
     note_text_flattened: int = 0
+    # BioC: annotations whose modifier terms are one infon, not entities.
+    modifiers_flattened: int = 0
+    # BioC: annotations whose assertion is not "present" (absent, uncertain).
+    # Only the infon says so; a reader that ignores infons sees a finding.
+    assertion_only_in_infons: int = 0
+    # BioC: annotations with a reviewer resolution, kept in infons only.
+    review_resolutions: int = 0
+    # BioC: one warning per annotation and kind of loss, in output order.
+    # ``path`` is the annotation reference (``urn:ontospan:...``), which names
+    # the set and so the document; the message starts with the document id.
+    issues: list[Issue] = field(default_factory=list)
+
+    def note(self, code: str, path: str, message: str) -> None:
+        self.issues.append(Issue("warning", code, path, message))
 
     def add(self, other: ConversionReport) -> None:
         for item in fields(self):

@@ -1,9 +1,12 @@
 """BioC export, JSON and XML: derived, lossy, with a report of what was left out.
 
 One BioC document per annotated document, with one passage (offset 0) that
-holds the full canonical text. Offsets are Unicode codepoints of that text,
-like ontospan offsets; the collection says so in the infon
-``offset_unit: codepoint``, because some BioC tools count UTF-8 bytes.
+holds the full canonical text: the format has no document sections to follow.
+
+Offsets are Unicode codepoints of that text by default, like ontospan offsets
+and like the BioC tools written in Python or Java. ``BioC.dtd`` recommends
+UTF-8 bytes instead; ``offset_unit="utf8"`` writes those. The collection
+states the unit in the infon ``offset_unit`` (``codepoint`` or ``utf8``).
 
 - One BioC annotation per mention; a discontinuous mention has one location
   per segment and the segment texts joined by a space as its text.
@@ -19,6 +22,21 @@ like ontospan offsets; the collection says so in the infon
   BioC annotation needs. It becomes a document relation without nodes, with
   the same infons and ``document_level: true``.
 - Cue segments and modifier segments are not written (see the report).
+
+What is kept exactly: the text, every mention segment as a location, term,
+layer, axes with their basis, modifier terms, provenance and reviewer
+resolution. What is approximated or dropped is counted in the report and
+listed per annotation in ``report.issues``:
+
+- ``spanless_as_relation``: a document-level annotation is a relation without
+  nodes; tools that only read annotations do not see it.
+- ``discontinuous_text_joined``: the locations are exact, the annotation text
+  is the segment texts joined by a space.
+- ``modifiers_as_infon``: modifier terms are one infon, not annotations.
+- ``modifier_segments_dropped`` and ``cue_segments_dropped``.
+- ``assertion_in_infon``: BioC has no negation or uncertainty; an annotation
+  that is not ``present`` looks like a finding to a reader that ignores infons.
+- ``review_resolution_in_infon``: the reviewer's ``uncertain`` flag likewise.
 """
 
 from __future__ import annotations
@@ -26,7 +44,8 @@ from __future__ import annotations
 import re
 import xml.etree.ElementTree as ET
 from collections.abc import Sequence
-from typing import Any
+from itertools import accumulate
+from typing import Any, Literal
 
 from ontospan._interchange import (
     ConversionReport,
@@ -40,8 +59,9 @@ from ontospan.models import AnnotatedDocument, Annotation
 from ontospan.ontology import OntologyView
 from ontospan.refs import annotation_ref
 
-__all__ = ["ConversionReport", "to_bioc_json", "to_bioc_xml"]
+__all__ = ["ConversionReport", "OffsetUnit", "to_bioc_json", "to_bioc_xml"]
 
+OffsetUnit = Literal["codepoint", "utf8"]
 KEY = "ontospan.key"
 # Characters that XML 1.0 cannot hold, even escaped.
 _NOT_XML = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f￾￿]")
@@ -84,11 +104,56 @@ def _infons(
     return infons
 
 
+def _positions(text: str, offset_unit: OffsetUnit) -> Sequence[int]:
+    """The offset in the output unit of every codepoint offset of the text."""
+    if offset_unit == "codepoint":
+        return range(len(text) + 1)
+    if offset_unit == "utf8":
+        sizes = (len(char.encode("utf-8")) for char in text)
+        return list(accumulate(sizes, initial=0))
+    raise ValueError(f"unknown offset unit {offset_unit!r}")
+
+
+def _note_losses(
+    annotation: Annotation, document_id: str, ref: str, report: ConversionReport
+) -> None:
+    """Count and list what BioC holds only approximately for one annotation."""
+
+    def note(code: str, message: str) -> None:
+        report.note(code, ref, f"{document_id}: {message}")
+
+    if not annotation.mentions:
+        note("spanless_as_relation", "no text span; written as a relation")
+    for index, mention in enumerate(annotation.mentions, start=1):
+        if len(mention.segments) > 1:
+            message = f"mention {index} is discontinuous; its text is joined"
+            note("discontinuous_text_joined", message)
+    cues = sum(len(mention.cue_segments) for mention in annotation.mentions)
+    if cues:
+        note("cue_segments_dropped", f"{cues} cue segment(s) not written")
+    if annotation.modifiers:
+        report.modifiers_flattened += 1
+        note("modifiers_as_infon", "modifier terms written as one infon")
+    spans = sum(len(modifier.segments) for modifier in annotation.modifiers)
+    if spans:
+        note("modifier_segments_dropped", f"{spans} modifier segment(s) not written")
+    assertion = annotation.axes.get("assertion")
+    if assertion is not None and assertion.value != "present":
+        report.assertion_only_in_infons += 1
+        note("assertion_in_infon", f"assertion {assertion.value} is only an infon")
+    if annotation.review_resolution is not None:
+        report.review_resolutions += 1
+        outcome = annotation.review_resolution.outcome
+        message = f"reviewer resolution {outcome} is only an infon"
+        note("review_resolution_in_infon", message)
+
+
 def _document(
     unit: AnnotatedDocument,
     document_id: str,
     ontology: OntologyView | None,
     bundle_id: str | None,
+    offset_unit: OffsetUnit,
     report: ConversionReport,
 ) -> dict[str, Any]:
     document, annotation_set = unit.document, unit.annotation_set
@@ -111,6 +176,7 @@ def _document(
     annotations = annotation_set.annotations
     for annotation in annotations:
         count_dropped_segments(annotation, report)
+    position = _positions(document.text, offset_unit)
     bioc_annotations = []
     for annotation, index, mention in ordered_mentions(annotations):
         annotation_id = annotation.annotation_id
@@ -118,13 +184,19 @@ def _document(
             annotation_id = f"{annotation_id}/{index + 1}"
         item_infons = _infons(unit, annotation, ontology, bundle_id)
         item_infons["mention"] = str(index + 1)
+        if index == 0:
+            ref = item_infons["annotation_ref"]
+            _note_losses(annotation, document_id, ref, report)
         bioc_annotations.append(
             {
                 "id": annotation_id,
                 "infons": item_infons,
                 "text": " ".join(seg.text for seg in mention.segments),
                 "locations": [
-                    {"offset": seg.start, "length": seg.end - seg.start}
+                    {
+                        "offset": position[seg.start],
+                        "length": position[seg.end] - position[seg.start],
+                    }
                     for seg in mention.segments
                 ],
             }
@@ -135,6 +207,7 @@ def _document(
     for annotation in spanless(annotations):
         item_infons = _infons(unit, annotation, ontology, bundle_id)
         item_infons["document_level"] = "true"
+        _note_losses(annotation, document_id, item_infons["annotation_ref"], report)
         relations.append(
             {"id": annotation.annotation_id, "infons": item_infons, "nodes": []}
         )
@@ -171,10 +244,15 @@ def to_bioc_json(
     ontology: OntologyView | None = None,
     *,
     bundle_id: str | None = None,
+    offset_unit: OffsetUnit = "codepoint",
 ) -> tuple[dict[str, Any], ConversionReport]:
     """A BioC JSON collection (as a dict) and what the export left out.
 
     ``ontology`` only adds labels. ``bundle_id`` goes into ``annotation_ref``.
+    ``offset_unit`` is the unit of annotation offsets and lengths:
+    ``codepoint`` (default) or ``utf8`` (bytes, as ``BioC.dtd`` recommends).
+    The units are exported as given: select the sets to publish first, for
+    example the adjudicated or release set of each document.
     Alternative sets of one document get the id
     ``urn:ontospan:document:<document_id>:<annotation_set_id>``.
     Raises ValueError without units or with ids BioC cannot tell apart.
@@ -183,7 +261,7 @@ def to_bioc_json(
         raise ValueError("a BioC collection needs at least one document")
     report = ConversionReport()
     documents = [
-        _document(unit, document_id, ontology, bundle_id, report)
+        _document(unit, document_id, ontology, bundle_id, offset_unit, report)
         for unit, document_id in zip(units, document_ids(units), strict=True)
     ]
     collection = {
@@ -191,7 +269,7 @@ def to_bioc_json(
         "date": _date(units),
         "key": KEY,
         "infons": {
-            "offset_unit": "codepoint",
+            "offset_unit": offset_unit,
             "ontospan_version": __version__,
             "schema_version": SCHEMA_VERSION,
         },
@@ -252,13 +330,16 @@ def to_bioc_xml(
     ontology: OntologyView | None = None,
     *,
     bundle_id: str | None = None,
+    offset_unit: OffsetUnit = "codepoint",
 ) -> tuple[str, ConversionReport]:
     """A BioC XML collection (``BioC.dtd``) and what the export left out.
 
     The same content as ``to_bioc_json``. Also raises ValueError for text
     with characters that XML 1.0 cannot hold (most C0 controls).
     """
-    collection, report = to_bioc_json(units, ontology, bundle_id=bundle_id)
+    collection, report = to_bioc_json(
+        units, ontology, bundle_id=bundle_id, offset_unit=offset_unit
+    )
     root = _xml(collection)
     ET.indent(root)
     body = ET.tostring(root, encoding="unicode")
