@@ -214,6 +214,25 @@ def _translation_on_native() -> Data:
     return _dump(with_variant(sample(), variant, MACHINE_TRANSLATION))
 
 
+def _correction_with_translation(version: str) -> Callable[[], Data]:
+    """A corrected text with the run that produced it (allowed from 1.3)."""
+
+    def build() -> Data:
+        corrected = corrected_sample()
+        item = with_variant(corrected, corrected.document.variant, MACHINE_TRANSLATION)
+        data = item.model_dump(mode="json")
+        data["schema_version"] = version
+        return data
+
+    return build
+
+
+def _translation_on_native_1_3() -> Data:
+    data = _translation_on_native()
+    data["schema_version"] = "1.3.0"
+    return data
+
+
 def _manifest_release_name_mismatch() -> Data:
     return _dump(
         Manifest(
@@ -229,6 +248,24 @@ def _manifest_release_name_mismatch() -> Data:
 
 # name -> (builder, errors, warnings, valid under the hpo profile schema or None)
 CASES: dict[str, tuple[Callable[[], Data], list[str], list[str], bool | None]] = {
+    "valid/correction-with-translation": (
+        _correction_with_translation("1.3.0"),
+        [],
+        CHECKED,
+        True,
+    ),
+    "invalid/correction-with-translation-before-1-3": (
+        _correction_with_translation("1.2.0"),
+        ["translation_unexpected"],
+        CHECKED,
+        True,
+    ),
+    "invalid/translation-on-native-1-3": (
+        _translation_on_native_1_3,
+        ["translation_unexpected"],
+        CHECKED,
+        True,
+    ),
     "valid/external-human": (_external_human(), [], CHECKED, True),
     "valid/external-human-source-name-only": (
         _external_human(

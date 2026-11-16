@@ -657,7 +657,7 @@
     },
     "Translation": {
       "additionalProperties": false,
-      "description": "The run that produced a translation and its automatic checks.",
+      "description": "The run that produced a translation and its automatic checks.\n\nOn a correction (format 1.3) it is the run that produced the corrected\ntext, for example a new machine translation or a post-editing tool.",
       "properties": {
         "checks": {
           "default": [],

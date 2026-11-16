@@ -14,6 +14,10 @@ their schema files are unchanged.
   `external_stage`.
 - This is the one value added to a closed list within major version 1.
   Readers older than 1.3 reject an `external_human` unit (`model`).
+- A `correction` variant may carry `translation` data in a unit that declares
+  1.3 or later: the run that produced the corrected text, not the version it
+  corrects. Units that declare 1.1 or 1.2 keep `translation_unexpected`;
+  `native` variants never carry it; `translation_missing` is unchanged.
 - Schemas `annotated-document-1.3.json`, `bundle-manifest-1.3.json` and
   `hpo-phenotype-annotation-1.3.json`; conformance fixtures for the set kind.
 - `SCHEMA_VERSION` is `1.3.0`; new units and bundles declare it by default.
