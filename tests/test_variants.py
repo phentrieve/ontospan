@@ -117,3 +117,69 @@ def test_a_1_0_unit_cannot_declare_variant_fields() -> None:
     data = translated_sample().model_dump(mode="json")
     data["schema_version"] = "1.0.0"
     assert "schema" in [issue.code for issue in validate(data).errors]
+
+
+def _corrected_with_translation(version: str) -> dict[str, Any]:
+    unit = _unit("correction", version=2, translation=MACHINE_TRANSLATION)
+    data: dict[str, Any] = unit.model_dump(mode="json")
+    data["schema_version"] = version
+    return data
+
+
+def _codes(data: dict[str, Any]) -> tuple[list[str], list[str]]:
+    report = validate(data)
+    warnings = [i.code for i in report.warnings if i.code != "hierarchy_not_checked"]
+    return [issue.code for issue in report.errors], warnings
+
+
+def test_a_correction_carries_translation_data_from_1_3() -> None:
+    data = _corrected_with_translation("1.3.0")
+    assert _codes(data) == ([], [])
+    loaded = load_annotated_document(data)
+    assert loaded.document.translation == MACHINE_TRANSLATION
+    assert loaded.document.variant is not None
+    assert loaded.document.variant.origin == "correction"
+    assert load_annotated_document(dump_json(loaded)) == loaded
+
+
+@pytest.mark.parametrize("version", ["1.1.0", "1.2.0"])
+def test_earlier_versions_keep_rejecting_translation_data_on_a_correction(
+    version: str,
+) -> None:
+    report = validate(_corrected_with_translation(version))
+    (error,) = report.errors
+    assert (error.code, error.path) == (
+        "translation_unexpected",
+        "document.translation",
+    )
+    assert "1.3" in error.message
+
+
+def test_a_newer_minor_version_allows_it_too() -> None:
+    assert _codes(_corrected_with_translation("1.4.0")) == ([], ["newer_minor"])
+
+
+@pytest.mark.parametrize("version", ["1.1.0", "1.2.0", "1.3.0"])
+def test_a_correction_without_translation_data_stays_silent(version: str) -> None:
+    data = corrected_sample().model_dump(mode="json")
+    data["schema_version"] = version
+    assert _codes(data) == ([], [])
+
+
+@pytest.mark.parametrize("version", ["1.1.0", "1.2.0", "1.3.0"])
+def test_native_and_variantless_texts_never_carry_translation_data(
+    version: str,
+) -> None:
+    native = _unit("native", derived_from=None, translation=MACHINE_TRANSLATION)
+    data = native.model_dump(mode="json")
+    data["schema_version"] = version
+    assert _codes(data) == (["translation_unexpected"], [])
+    del data["document"]["variant"]
+    assert _codes(data) == (["translation_unexpected"], [])
+
+
+def test_translation_missing_still_warns_for_translations_only() -> None:
+    assert _codes(_unit("human_translation").model_dump(mode="json")) == (
+        [],
+        ["translation_missing"],
+    )

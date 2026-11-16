@@ -13,7 +13,8 @@ Format 1.1 adds the optional document fields ``case_id``, ``variant`` and
 ``translation`` and the optional manifest block ``release``.
 Format 1.2 adds optional annotation ``review_resolution`` metadata.
 Format 1.3 adds the set kind ``external_human`` and the set block ``source``
-that goes with it. This is the one addition to a closed list within a major
+that goes with it, and allows ``translation`` data on a ``correction``
+variant. The set kind is the one addition to a closed list within a major
 version: readers older than 1.3 reject such a set instead of misreading it.
 """
 
@@ -223,7 +224,11 @@ class TranslationCheck(_Model):
 
 
 class Translation(_Model):
-    """The run that produced a translation and its automatic checks."""
+    """The run that produced a translation and its automatic checks.
+
+    On a correction (format 1.3) it is the run that produced the corrected
+    text, for example a new machine translation or a post-editing tool.
+    """
 
     provider: str = Field(min_length=1)
     model: str | None = None

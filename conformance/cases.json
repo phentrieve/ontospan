@@ -3,6 +3,37 @@
     {
       "artifact_type": "annotated_document",
       "errors": [],
+      "file": "valid/correction-with-translation.json",
+      "hpo_profile_schema": true,
+      "warnings": [
+        "hierarchy_not_checked"
+      ]
+    },
+    {
+      "artifact_type": "annotated_document",
+      "errors": [
+        "translation_unexpected"
+      ],
+      "file": "invalid/correction-with-translation-before-1-3.json",
+      "hpo_profile_schema": true,
+      "warnings": [
+        "hierarchy_not_checked"
+      ]
+    },
+    {
+      "artifact_type": "annotated_document",
+      "errors": [
+        "translation_unexpected"
+      ],
+      "file": "invalid/translation-on-native-1-3.json",
+      "hpo_profile_schema": true,
+      "warnings": [
+        "hierarchy_not_checked"
+      ]
+    },
+    {
+      "artifact_type": "annotated_document",
+      "errors": [],
       "file": "valid/external-human.json",
       "hpo_profile_schema": true,
       "warnings": [

@@ -118,6 +118,11 @@ filesystem failures such as a missing input file retain their normal exceptions.
 - Translations (1.1): `translation` is only allowed on a translation variant
   (`translation_unexpected`). A translation variant without it gets the
   warning `translation_missing`, since a human translation may have no run data.
+- Corrections (1.3): a unit that declares 1.3 or later may also have
+  `translation` on a `correction` variant. A unit that declares 1.1 or 1.2
+  still gets `translation_unexpected` for it. A correction without
+  `translation` gets no warning. A `native` variant and a document without
+  `variant` never have `translation`.
 - External sets (1.3): an `external_human` set has a `source`
   (`external_source_missing`), and no other set kind has one
   (`external_source_unexpected`). Its set actors and the actor of each
@@ -222,6 +227,25 @@ source = ExternalSource(
 
 Use `schema_version="1.3.0"` for such a unit. The frozen 1.0 to 1.2 schemas
 reject both the set kind and the `source` block.
+
+### Format 1.3: how a corrected text was made
+
+A `correction` variant may carry `document.translation`. There it describes
+the run that produced **the corrected text**: for example the `provider` and
+`model` of a new machine translation or of a post-editing tool, with its
+`run_id`, `recipe` and `checks`. It does not describe the version that was
+corrected. That version keeps its own `translation` data and is named by
+`derived_from`.
+
+- The block is optional on a correction. A correction typed by a person has
+  none, and nothing warns about that.
+- Its presence does not say who or what made the correction in general, only
+  that this run was involved. Review and acceptance stay with the consumer.
+- ontospan does not resolve `derived_from`, so it does not check that the
+  corrected text is a translation. On a correction of a native text the block
+  has no defined meaning; consumers should not write it there.
+- The schema is the same as in 1.1 and 1.2. Only the rule changes, by the
+  declared version: declare `1.3.0` to use it.
 
 ### References
 

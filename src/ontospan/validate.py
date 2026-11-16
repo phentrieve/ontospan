@@ -203,13 +203,21 @@ def _check_actor(actor: Actor, path: str, report: ValidationReport) -> None:
 
 
 TRANSLATION_ORIGINS = frozenset({"machine_translation", "human_translation"})
+# The first format version that allows translation data on a correction.
+CORRECTION_TRANSLATION_VERSION = (1, 3)
 
 
-def _check_variant(unit: AnnotatedDocument, report: ValidationReport) -> None:
+def _check_variant(
+    unit: AnnotatedDocument, version: Version, report: ValidationReport
+) -> None:
     """Rules of the format 1.1 variant and translation fields of a document.
 
     Whether ``derived_from`` names a known text is left to the consumer: the
     source may live outside the bundle.
+
+    From format 1.3 a correction may carry translation data. It describes how
+    the corrected text was made, not the version it corrects. A unit that
+    declares an earlier version is checked by the rule of that version.
     """
     document = unit.document
     variant = document.variant
@@ -242,8 +250,13 @@ def _check_variant(unit: AnnotatedDocument, report: ValidationReport) -> None:
             report.add(
                 "warning", "translation_missing", "document.translation", message
             )
-    elif document.translation is not None:
+    elif document.translation is not None and not (
+        variant.origin == "correction"
+        and (version.major, version.minor) >= CORRECTION_TRANSLATION_VERSION
+    ):
         message = f"translation data on a {variant.origin} variant"
+        if variant.origin == "correction":
+            message += " needs format 1.3 or later"
         report.add("error", "translation_unexpected", "document.translation", message)
 
 
@@ -330,7 +343,7 @@ def _check_content(
         report.add("error", "text_not_canonical", "document.text", message)
     if text_sha256(text) != unit.document.text_sha256:
         report.add("error", "text_hash", "document.text_sha256", "hash does not match")
-    _check_variant(unit, report)
+    _check_variant(unit, version, report)
     _check_external(unit, report)
     if require_tool_identity:
         for index, actor in enumerate(unit.annotation_set.actors):
