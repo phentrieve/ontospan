@@ -137,3 +137,27 @@ FROZEN_1_1 = {
 def test_frozen_1_1_schemas_are_unchanged(name: str) -> None:
     data = resources.files("ontospan.schema").joinpath(name).read_bytes()
     assert hashlib.sha256(data).hexdigest() == FROZEN_1_1[name]
+
+
+# Format 1.2 schemas as released (738f3d4) remain frozen.
+FROZEN_1_2 = {
+    "annotated-document-1.2.json": "1b1d6feb79881ba49f3bf0ef8fee6ba55e30bcb9c66ae24d3dc086203ec4a8f5",
+    "bundle-manifest-1.2.json": "eefe0ac69a464b8b0ee8e45f9000d15ef30c92564d892497f3ef0e78c3acda8f",
+    "hpo-phenotype-annotation-1.2.json": "30f7d658992cac27dd9ab91e95ec6f00fd99c608885a70c443af051186fdccad",
+}
+
+
+@pytest.mark.parametrize("name", list(FROZEN_1_2))
+def test_frozen_1_2_schemas_are_unchanged(name: str) -> None:
+    data = resources.files("ontospan.schema").joinpath(name).read_bytes()
+    assert hashlib.sha256(data).hexdigest() == FROZEN_1_2[name]
+
+
+def test_the_current_schemas_describe_the_1_3_set_kind_and_source() -> None:
+    defs = build_schemas()[schema_name(DOCUMENT)]["$defs"]
+    assert "external_human" in defs["AnnotationSet"]["properties"]["set_kind"]["enum"]
+    assert "source" in defs["AnnotationSet"]["properties"]
+    assert "source" not in defs["AnnotationSet"]["required"]
+    frozen = committed(schema_name(DOCUMENT, "1.2.0"))["$defs"]["AnnotationSet"]
+    assert "external_human" not in frozen["properties"]["set_kind"]["enum"]
+    assert "source" not in frozen["properties"]

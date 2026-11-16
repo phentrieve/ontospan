@@ -33,10 +33,12 @@ from builders import (
 from ontospan.models import (
     Actor,
     AxisValue,
+    ExternalSource,
     FileEntry,
     Layer,
     Manifest,
     OntologyResource,
+    Producer,
     ReleaseInfo,
     ReviewResolution,
     Variant,
@@ -61,6 +63,8 @@ def _sample() -> Data:
 
 def _review_resolution(*, note: str | None = "Source evidence needs review.") -> Data:
     data = sample().model_dump(mode="json")
+    # Written when 1.2 was current; the fixtures stay as they were.
+    data["schema_version"] = "1.2.0"
     data["annotation_set"]["annotations"][1]["review_resolution"] = ReviewResolution(
         outcome="uncertain",
         reviewer=Actor(actor_id="reviewer-1", kind="human"),
@@ -76,6 +80,46 @@ def _invalid_review_resolution(change: Callable[[Data], None]) -> Callable[[], D
         return data
 
     return build
+
+
+EXTERNAL_SOURCE = ExternalSource(
+    name="Example Hospital re-annotation 2026",
+    description="Two clinicians annotated the texts in another tool.",
+    producer=Producer(name="example-annotator", version="4.2"),
+)
+
+
+def _external_human(change: Callable[[Data], None] | None = None) -> Callable[[], Data]:
+    """A format 1.3 set made by people outside the consumer."""
+
+    def build() -> Data:
+        data = sample().model_dump(mode="json")
+        data["schema_version"] = "1.3.0"
+        data["annotation_set"]["set_kind"] = "external_human"
+        data["annotation_set"]["source"] = EXTERNAL_SOURCE.model_dump(mode="json")
+        if change is not None:
+            change(data["annotation_set"])
+        return data
+
+    return build
+
+
+def _source_on_individual() -> Data:
+    data = _external_human()()
+    data["annotation_set"]["set_kind"] = "individual"
+    return data
+
+
+def _external_human_before_1_3() -> Data:
+    data = _external_human()()
+    data["schema_version"] = "1.2.0"
+    del data["annotation_set"]["source"]
+    return data
+
+
+def _first_provenance(annotation_set: Data) -> Data:
+    provenance: Data = annotation_set["annotations"][0]["provenance"]
+    return provenance
 
 
 def _discontinuous() -> Data:
@@ -101,7 +145,7 @@ def _generic_layer() -> Data:
 
 def _newer_minor() -> Data:
     data = _sample()
-    data["schema_version"] = "1.3.0"
+    data["schema_version"] = "1.4.0"
     data["annotation_set"]["relations"] = [{"from": "a1", "to": "a2"}]
     data["annotation_set"]["layers"].append(
         {
@@ -185,6 +229,67 @@ def _manifest_release_name_mismatch() -> Data:
 
 # name -> (builder, errors, warnings, valid under the hpo profile schema or None)
 CASES: dict[str, tuple[Callable[[], Data], list[str], list[str], bool | None]] = {
+    "valid/external-human": (_external_human(), [], CHECKED, True),
+    "valid/external-human-source-name-only": (
+        _external_human(
+            lambda s: s.update(source={"name": "Example Hospital re-annotation 2026"})
+        ),
+        [],
+        CHECKED,
+        True,
+    ),
+    "invalid/external-human-missing-source": (
+        _external_human(lambda s: s.pop("source")),
+        ["external_source_missing"],
+        CHECKED,
+        True,
+    ),
+    "invalid/external-human-stage": (
+        _external_human(lambda s: s.update(stage="adjudication")),
+        ["external_stage"],
+        CHECKED,
+        True,
+    ),
+    "invalid/external-human-tool-actor": (
+        _external_human(
+            lambda s: s["actors"].append(
+                {"actor_id": "tool-1", "kind": "tool", "name": "t", "version": "1"}
+            )
+        ),
+        ["external_actor_kind"],
+        CHECKED,
+        True,
+    ),
+    "invalid/external-human-tool-annotation": (
+        _external_human(lambda s: _first_provenance(s)["actor"].update(kind="tool")),
+        ["external_actor_kind"],
+        CHECKED,
+        True,
+    ),
+    "invalid/external-human-method-tool": (
+        _external_human(lambda s: _first_provenance(s).update(method="tool")),
+        ["external_method"],
+        CHECKED,
+        True,
+    ),
+    "invalid/external-human-source-unknown-field": (
+        _external_human(lambda s: s["source"].update(url="https://example.org")),
+        ["schema"],
+        [],
+        None,
+    ),
+    "invalid/external-human-before-1-3": (
+        _external_human_before_1_3,
+        ["schema"],
+        [],
+        None,
+    ),
+    "invalid/source-on-other-set-kind": (
+        _source_on_individual,
+        ["external_source_unexpected"],
+        CHECKED,
+        True,
+    ),
     "valid/review-resolution": (_review_resolution, [], CHECKED, True),
     "valid/review-resolution-without-note": (
         lambda: _review_resolution(note=None),

@@ -11,6 +11,8 @@ Ontotator, Phentrieve and phentrieve-benchmark.
 - Profiles: `generic` and `hpo-phenotype` (axes, modifiers, allowed roots).
 - Document variants (versions, translations and their checks) and release
   metadata in bundle manifests (format 1.1).
+- Sets made by people elsewhere, with their source, as input to check
+  (format 1.3).
 - Matching and agreement rules shared by every tool.
 - Phenopacket v2 export (`pip install ontospan[phenopacket]` adds parsing
   into the official classes).
@@ -116,6 +118,11 @@ filesystem failures such as a missing input file retain their normal exceptions.
 - Translations (1.1): `translation` is only allowed on a translation variant
   (`translation_unexpected`). A translation variant without it gets the
   warning `translation_missing`, since a human translation may have no run data.
+- External sets (1.3): an `external_human` set has a `source`
+  (`external_source_missing`), and no other set kind has one
+  (`external_source_unexpected`). Its set actors and the actor of each
+  annotation are `human` (`external_actor_kind`), no annotation has the method
+  `tool` (`external_method`), and `stage` is not set (`external_stage`).
 - In a bundle (1.1), units with the same `document_id`, `language` and
   `variant.version` have the same `text_sha256` (`variant_duplicate`). Units
   without `variant` are not compared. `release_name` equals `release.name`
@@ -182,6 +189,40 @@ contains a reviewer resolution, since the conversion cannot preserve it.
 `include_uncertain=True` applies only to clinical assertion uncertainty and
 does not override this refusal.
 
+### Format 1.3: annotation sets made by people elsewhere
+
+The set kind `external_human` is for annotations that people made outside the
+consuming application, for example a re-annotation in another tool or an
+export of another installation. It keeps their provenance without presenting
+them as a tool's output:
+
+```python
+from ontospan import ExternalSource, Producer
+
+source = ExternalSource(
+    name="Example Hospital re-annotation 2026",
+    description="Two clinicians annotated the texts in another tool.",
+    producer=Producer(name="example-annotator", version="4.2"),
+)
+```
+
+- `annotation_set.source` is required: `name` says where the annotations were
+  made (project, group or corpus), `description` is free text, and `producer`
+  (`name`, `version`) is the software they were made with.
+- The set actors and every annotation's `provenance.actor` are `human`. The
+  methods `manual`, `adopted`, `edited` and `merged` are allowed and describe
+  how the external people worked; `tool` is not.
+- The set claims nothing about the consumer's workflow: it has no `stage`, and
+  it is not an `individual` submission, a `stage_result`, an `adjudicated` or
+  a `release` set. A consumer takes it as **input to check**, like
+  `tool_output`. What was checked is a new set of another kind, which can
+  point back through `provenance.source_refs`.
+- `source` is only allowed on an `external_human` set and is left out
+  otherwise, so earlier units are written unchanged.
+
+Use `schema_version="1.3.0"` for such a unit. The frozen 1.0 to 1.2 schemas
+reject both the set kind and the `source` block.
+
 ### References
 
 An annotation is referenced as `urn:ontospan:<annotation_set_id>:<annotation_id>`.
@@ -201,10 +242,14 @@ loaders check syntax without requiring those targets to be locally available.
   when it writes the unit again.
 - **Closed lists** (`set_kind`, `method`, actor `kind`, `basis` and the axis
   values of a profile) only change with a new **major version**. Readers
-  reject unknown major versions.
+  reject unknown major versions. The one exception is the set kind
+  `external_human` of 1.3: a reader older than 1.3 rejects such a unit
+  (`model`) instead of reading it as something else, and reads every other
+  1.3 unit as before.
 - Every released minor version keeps its frozen schema files. A unit is
   checked against the schema of the version it declares.
-- Released: 1.0, 1.1 and 1.2 (see `CHANGELOG.md`).
+- Released: 1.0, 1.1 and 1.2. 1.3 comes with the next release (see
+  `CHANGELOG.md`).
 
 ## Matching and agreement
 

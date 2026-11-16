@@ -3,6 +3,108 @@
     {
       "artifact_type": "annotated_document",
       "errors": [],
+      "file": "valid/external-human.json",
+      "hpo_profile_schema": true,
+      "warnings": [
+        "hierarchy_not_checked"
+      ]
+    },
+    {
+      "artifact_type": "annotated_document",
+      "errors": [],
+      "file": "valid/external-human-source-name-only.json",
+      "hpo_profile_schema": true,
+      "warnings": [
+        "hierarchy_not_checked"
+      ]
+    },
+    {
+      "artifact_type": "annotated_document",
+      "errors": [
+        "external_source_missing"
+      ],
+      "file": "invalid/external-human-missing-source.json",
+      "hpo_profile_schema": true,
+      "warnings": [
+        "hierarchy_not_checked"
+      ]
+    },
+    {
+      "artifact_type": "annotated_document",
+      "errors": [
+        "external_stage"
+      ],
+      "file": "invalid/external-human-stage.json",
+      "hpo_profile_schema": true,
+      "warnings": [
+        "hierarchy_not_checked"
+      ]
+    },
+    {
+      "artifact_type": "annotated_document",
+      "errors": [
+        "external_actor_kind"
+      ],
+      "file": "invalid/external-human-tool-actor.json",
+      "hpo_profile_schema": true,
+      "warnings": [
+        "hierarchy_not_checked"
+      ]
+    },
+    {
+      "artifact_type": "annotated_document",
+      "errors": [
+        "external_actor_kind"
+      ],
+      "file": "invalid/external-human-tool-annotation.json",
+      "hpo_profile_schema": true,
+      "warnings": [
+        "hierarchy_not_checked"
+      ]
+    },
+    {
+      "artifact_type": "annotated_document",
+      "errors": [
+        "external_method"
+      ],
+      "file": "invalid/external-human-method-tool.json",
+      "hpo_profile_schema": true,
+      "warnings": [
+        "hierarchy_not_checked"
+      ]
+    },
+    {
+      "artifact_type": "annotated_document",
+      "errors": [
+        "schema"
+      ],
+      "file": "invalid/external-human-source-unknown-field.json",
+      "hpo_profile_schema": null,
+      "warnings": []
+    },
+    {
+      "artifact_type": "annotated_document",
+      "errors": [
+        "schema"
+      ],
+      "file": "invalid/external-human-before-1-3.json",
+      "hpo_profile_schema": null,
+      "warnings": []
+    },
+    {
+      "artifact_type": "annotated_document",
+      "errors": [
+        "external_source_unexpected"
+      ],
+      "file": "invalid/source-on-other-set-kind.json",
+      "hpo_profile_schema": true,
+      "warnings": [
+        "hierarchy_not_checked"
+      ]
+    },
+    {
+      "artifact_type": "annotated_document",
+      "errors": [],
       "file": "valid/review-resolution.json",
       "hpo_profile_schema": true,
       "warnings": [

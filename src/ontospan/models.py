@@ -12,6 +12,9 @@ major version.
 Format 1.1 adds the optional document fields ``case_id``, ``variant`` and
 ``translation`` and the optional manifest block ``release``.
 Format 1.2 adds optional annotation ``review_resolution`` metadata.
+Format 1.3 adds the set kind ``external_human`` and the set block ``source``
+that goes with it. This is the one addition to a closed list within a major
+version: readers older than 1.3 reject such a set instead of misreading it.
 """
 
 from __future__ import annotations
@@ -39,7 +42,15 @@ VERSION = r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$"
 Basis = Literal["chosen", "defaulted"]
 ActorKind = Literal["human", "tool"]
 Method = Literal["manual", "adopted", "edited", "merged", "tool"]
-SetKind = Literal["individual", "stage_result", "adjudicated", "release", "tool_output"]
+SetKind = Literal[
+    "individual",
+    "stage_result",
+    "adjudicated",
+    "release",
+    "tool_output",
+    # Format 1.3: made by people outside the consumer; input to check.
+    "external_human",
+]
 VariantOrigin = Literal[
     "native", "machine_translation", "human_translation", "correction"
 ]
@@ -161,7 +172,26 @@ class Layer(_Model):
     allowed_roots: tuple[str, ...] = ()
 
 
-class AnnotationSet(_Model):
+class Producer(_Model):
+    name: str = Field(min_length=1)
+    version: str = Field(min_length=1)
+
+
+class ExternalSource(_Model):
+    """Where an ``external_human`` set was made (format 1.3).
+
+    ``name`` is the project, group or corpus the annotations come from, and
+    ``producer`` the software they were made with.
+    """
+
+    name: str = Field(min_length=1)
+    description: str | None = None
+    producer: Producer | None = None
+
+
+class AnnotationSet(_OmitsUnset):
+    _omit_if_none = ("source",)
+
     annotation_set_id: str = Field(min_length=1)
     set_kind: SetKind
     stage: str | None = None
@@ -171,6 +201,8 @@ class AnnotationSet(_Model):
     guideline_ref: str | None = None
     layers: tuple[Layer, ...] = Field(min_length=1)
     annotations: tuple[Annotation, ...] = ()
+    # Format 1.3; required for and only allowed on an external_human set.
+    source: ExternalSource | None = None
 
 
 class Variant(_Model):
@@ -233,11 +265,6 @@ class Contributor(_Model):
 class FileEntry(_Model):
     path: str = Field(min_length=1)
     sha256: str = Field(pattern=SHA256)
-
-
-class Producer(_Model):
-    name: str = Field(min_length=1)
-    version: str = Field(min_length=1)
 
 
 class SupersededRelease(_Model):
