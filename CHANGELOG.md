@@ -2,8 +2,9 @@
 
 ## Unreleased
 
-ZIP bundles with more than 10,000 entries (`MAX_ENTRIES`) are refused as
-`too_large` before any entry is read; the duplicate-entry check is linear.
+ZIP bundles with more than 10,000 entries (`MAX_ENTRIES`, directory entries
+included) are refused as `too_large` before any entry is read; the
+duplicate-entry check is linear.
 
 ## 1.2.1
 

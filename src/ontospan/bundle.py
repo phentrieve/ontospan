@@ -188,10 +188,12 @@ def _read_directory(source: Path, report: ValidationReport) -> dict[str, bytes]:
 
 def _read_zip(source: Path, report: ValidationReport) -> dict[str, bytes]:
     with zipfile.ZipFile(source) as archive:
-        infos = [info for info in archive.infolist() if not info.is_dir()]
-        if len(infos) > MAX_ENTRIES:
+        entries = archive.infolist()
+        # Directory entries count too: each one costs time to list.
+        if len(entries) > MAX_ENTRIES:
             report.add("error", "too_large", str(source), "bundle has too many entries")
             return {}
+        infos = [info for info in entries if not info.is_dir()]
         counts = Counter(info.filename for info in infos)
         for name in sorted(name for name, count in counts.items() if count > 1):
             report.add(
