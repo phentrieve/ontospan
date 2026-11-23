@@ -234,6 +234,20 @@ def test_zip_bundles_with_too_many_entries_are_not_read(
     assert error_codes(tmp_path / "b.zip") == ["too_large"]
 
 
+def test_directory_entries_count_towards_the_entry_limit(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    write_bundle(
+        tmp_path / "b.zip", two_annotators(), bundle_id="b-1", created_at=CREATED
+    )
+    with zipfile.ZipFile(tmp_path / "b.zip") as archive:
+        entries = len(archive.infolist())
+    with zipfile.ZipFile(tmp_path / "b.zip", "a") as archive:
+        archive.mkdir("extra")
+    monkeypatch.setattr(bundle, "MAX_ENTRIES", entries)
+    assert error_codes(tmp_path / "b.zip") == ["too_large"]
+
+
 def test_conflicting_layers_and_repeated_sets_cannot_be_written(tmp_path: Path) -> None:
     other = HPO_LAYER.model_copy(
         update={"ontology": OntologyResource(id="hp", version="2025-01-01")}
