@@ -226,7 +226,12 @@ def test_hierarchical_agreement_counts_parent_and_child_as_related() -> None:
     result = agreement(left, right, T, hp)
     assert (result.term_conflicts, result.related) == (1, 1)
     assert result.annotation_tolerant_f1 == pytest.approx(2 * 1 / 4)
-    assert result.annotation_hierarchical_f1 == 1.0
+    # A related pair counts half by default: 2 * (1 + 0.5) / 4.
+    assert result.annotation_hierarchical_f1 == pytest.approx(0.75)
+    full = agreement(left, right, T, hp, related_weight=1.0)
+    assert full.annotation_hierarchical_f1 == 1.0
+    none = agreement(left, right, T, hp, related_weight=0.0)
+    assert none.annotation_hierarchical_f1 == result.annotation_tolerant_f1
     # The relation is transitive and symmetric: grandparent against child.
     nervous = [a("b1", "HP:0000707", (19, 32))]
     assert agreement(nervous, [a("a1", DIALEPTIC, (19, 32))], T, hp).related == 1
@@ -239,6 +244,13 @@ def test_hierarchical_agreement_ignores_unrelated_terms_and_other_axes() -> None
     )
     assert (unrelated.term_conflicts, unrelated.related) == (1, 0)
     assert unrelated.annotation_hierarchical_f1 == 0.0
+    # Siblings (Severity and Position, both under Clinical modifier) share a
+    # parent but neither is an ancestor of the other: no credit.
+    siblings = agreement(
+        [a("a1", "HP:0012824", (19, 32))], [a("b1", "HP:0012830", (19, 32))], T, hp
+    )
+    assert (siblings.term_conflicts, siblings.related) == (1, 0)
+    assert siblings.annotation_hierarchical_f1 == 0.0
     other_axes = agreement(
         [a("a1", SEIZURE, (19, 32))],
         [a("b1", DIALEPTIC, (19, 32), axes_=axes("absent"))],
@@ -264,3 +276,9 @@ def test_without_an_ontology_hierarchical_fields_are_none_and_nothing_changes() 
         dataclasses.replace(with_hp, related=None, annotation_hierarchical_f1=None)
         == without
     )
+
+
+@pytest.mark.parametrize("weight", [-0.1, 1.5, float("nan")])
+def test_related_weight_outside_zero_and_one_is_refused(weight: float) -> None:
+    with pytest.raises(ValueError, match="related_weight"):
+        agreement([], [], T, related_weight=weight)

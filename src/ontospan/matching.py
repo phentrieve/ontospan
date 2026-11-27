@@ -349,7 +349,7 @@ def _mention_matches(
     return equal, compatible
 
 
-def _f1(true_positives: int, n_a: int, n_b: int) -> float:
+def _f1(true_positives: float, n_a: int, n_b: int) -> float:
     return 1.0 if n_a + n_b == 0 else 2 * true_positives / (n_a + n_b)
 
 
@@ -358,6 +358,8 @@ def agreement(
     b: Sequence[Annotation],
     text: str,
     ontology: OntologyView | None = None,
+    *,
+    related_weight: float = 0.5,
 ) -> Agreement:
     """Pairwise agreement: annotation, mention and term level, plus modifiers.
 
@@ -367,13 +369,21 @@ def agreement(
       one layer) whose terms are ancestor and descendant (``is_a``,
       transitive) and whose axes are equal.
     - ``annotation_hierarchical_f1``: the tolerant annotation F1 in which
-      related pairs also count as matches,
-      ``2 * (equal + compatible + related) / (len(a) + len(b))``.
+      each related pair counts ``related_weight`` of a match,
+      ``2 * (equal + compatible + related_weight * related) / (len(a) + len(b))``.
 
-    The pairing itself does not change: related pairs are the term conflicts
-    that the optimal assignment already formed. Without an ontology both
-    fields are None; every other value is the same with or without it.
+    ``related_weight`` (default 0.5, between 0 and 1) is the same for any
+    distance in the hierarchy; siblings and other relatives get no credit.
+    Since ``related`` is reported, a reader can recompute the figure for
+    another weight. The pairing itself does not change: related pairs are the
+    term conflicts that the optimal assignment already formed. Without an
+    ontology both fields are None; every other value is the same with or
+    without it.
     """
+    if not 0.0 <= related_weight <= 1.0:
+        raise ValueError(
+            f"related_weight must be between 0 and 1, got {related_weight!r}"
+        )
     groups = match_annotations(a, b, text, ontology)
     count = Counter(group.kind for group in groups)
     related = None if ontology is None else sum(map(_related, groups))
@@ -411,5 +421,9 @@ def agreement(
         related=related,
         annotation_hierarchical_f1=None
         if related is None
-        else _f1(count["equal"] + count["compatible"] + related, len(a), len(b)),
+        else _f1(
+            count["equal"] + count["compatible"] + related_weight * related,
+            len(a),
+            len(b),
+        ),
     )

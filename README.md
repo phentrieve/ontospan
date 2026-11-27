@@ -226,8 +226,10 @@ loaders check syntax without requiring those targets to be locally available.
   `related`, the paired term conflicts (overlapping or identical evidence)
   whose terms are ancestor and descendant (`is_a`, transitive) and whose axes
   are equal, and `annotation_hierarchical_f1`, the tolerant annotation F1 in
-  which related pairs count as matches:
-  `2 * (equal + compatible + related) / (n_a + n_b)`. The pairing is the same
+  which each related pair counts `related_weight` (keyword, default 0.5,
+  between 0 and 1) of a match:
+  `2 * (equal + compatible + related_weight * related) / (n_a + n_b)`. The
+  weight is the same for any distance; siblings get no credit. The pairing is the same
   as without an ontology. Without one, both fields are `None` and every other
   value is unchanged.
 
