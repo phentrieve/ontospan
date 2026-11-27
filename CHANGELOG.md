@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.3.0
+
 `agreement(..., ontology, related_weight=0.5)` adds `related` (paired term
 conflicts between an ancestor and its descendant with equal axes) and
 `annotation_hierarchical_f1`, in which each related pair counts
