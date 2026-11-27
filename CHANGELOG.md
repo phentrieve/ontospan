@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+`agreement(..., ontology, related_weight=0.5)` adds `related` (paired term
+conflicts between an ancestor and its descendant with equal axes) and
+`annotation_hierarchical_f1`, in which each related pair counts
+`related_weight` (default 0.5, between 0 and 1); both are None without an
+ontology (#7).
+
 ## 1.2.2
 
 `hpo-phenotype` validation: `modifier_as_annotation` (a modifier term used as
